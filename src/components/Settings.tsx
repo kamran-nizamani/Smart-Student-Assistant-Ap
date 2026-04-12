@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Bell, Moon, Smartphone, Download, Shield, User, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,17 +20,31 @@ export default function Settings() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      toast.info("To install: Tap the three dots (⋮) in your browser menu and select 'Install app' or 'Add to Home screen'.", {
-        duration: 5000,
-      });
-      return;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+        toast.success("Installation started!");
+      }
+    } else {
+      // If no prompt is available, it's likely because we're in an iframe or already installed
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) {
+        toast.info("App is already installed and running as a native app!");
+      } else {
+        toast.error("Installation prompt not ready.", {
+          description: "Please make sure you are opening the app in Google Chrome (not inside the AI Studio preview) to enable direct installation.",
+          duration: 6000,
+        });
+      }
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
+  };
+
+  const copyAppUrl = () => {
+    const url = "https://ais-dev-h3wwgyppdoaev6qkxid3vo-549229097871.asia-east1.run.app";
+    navigator.clipboard.writeText(url);
+    toast.success("App URL copied! Paste this into your Chrome browser.");
   };
 
   return (
@@ -44,24 +59,55 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-indigo-600" />
-              App Installation
+              Native App Experience
             </CardTitle>
-            <CardDescription>Install this app on your phone for a better experience.</CardDescription>
+            <CardDescription>Make this app feel like a real Android application.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-              <div className="space-y-1">
-                <p className="font-semibold text-indigo-900">Mobile App</p>
-                <p className="text-sm text-indigo-700">Get quick access from your home screen.</p>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="font-semibold text-indigo-900">Direct Installation</p>
+                  <p className="text-sm text-indigo-700">Click to add to your home screen.</p>
+                </div>
+                <Button onClick={handleInstallClick} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200">
+                  <Download className="w-4 h-4 mr-2" />
+                  Install App
+                </Button>
               </div>
-              <Button onClick={handleInstallClick} className="bg-indigo-600 hover:bg-indigo-700">
-                <Download className="w-4 h-4 mr-2" />
-                Install Now
-              </Button>
+              
+              <Separator className="bg-indigo-200/50" />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="font-medium text-indigo-900 text-sm">Copy App Link</p>
+                  <p className="text-xs text-indigo-700">Open this in Chrome to enable install.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={copyAppUrl} className="border-indigo-200 text-indigo-600 hover:bg-indigo-100">
+                  Copy URL
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-slate-400 mt-4 italic">
-              * Note: If the button doesn't work, use your browser's "Add to Home screen" menu option.
-            </p>
+
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
+              <p className="text-sm font-bold text-amber-900 flex items-center gap-2">
+                ⚠️ If the button above doesn't work:
+              </p>
+              <div className="space-y-3 text-xs text-amber-800">
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 bg-amber-200 rounded-full flex items-center justify-center shrink-0 font-bold">1</div>
+                  <p>Open this app in <strong>Chrome</strong> (not inside the preview chat).</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 bg-amber-200 rounded-full flex items-center justify-center shrink-0 font-bold">2</div>
+                  <p>Tap the <strong>three dots (⋮)</strong> at the top right of Chrome.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 bg-amber-200 rounded-full flex items-center justify-center shrink-0 font-bold">3</div>
+                  <p>Look for <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

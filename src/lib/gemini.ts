@@ -1,11 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 export const getStudyHelp = async (query: string) => {
+  if (!apiKey) {
+    return "API Key is missing. Please configure VITE_GEMINI_API_KEY.";
+  }
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: query,
       config: {
         systemInstruction: "You are a helpful study assistant for students. Provide clear, concise, and accurate information to help them with their studies. Use markdown for formatting.",
@@ -19,9 +23,12 @@ export const getStudyHelp = async (query: string) => {
 };
 
 export const generateQuiz = async (subject: string, difficulty: string = 'medium') => {
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please configure VITE_GEMINI_API_KEY.");
+  }
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: `Generate a 5-question multiple choice quiz about ${subject} with ${difficulty} difficulty level.`,
       config: {
         responseMimeType: "application/json",

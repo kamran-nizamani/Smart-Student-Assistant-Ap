@@ -120,11 +120,17 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
-    @apply bg-background text-foreground;
-    }
+    @apply bg-background text-foreground antialiased select-none;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
   html {
     @apply font-sans;
-    }
+  }
+  input, textarea, [contenteditable="true"], .select-text {
+    @apply select-text;
+  }
 }

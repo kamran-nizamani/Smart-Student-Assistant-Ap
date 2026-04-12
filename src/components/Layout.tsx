@@ -47,12 +47,20 @@ export default function Layout({
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'notes', icon: StickyNote, label: 'Notes' },
     { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
-    { id: 'timer', icon: Timer, label: 'Study Timer' },
+    { id: 'timer', icon: Timer, label: 'Timer' },
     { id: 'weather', icon: CloudSun, label: 'Weather' },
-    { id: 'ai', icon: MessageSquare, label: 'AI Assistant' },
-    { id: 'quiz', icon: GraduationCap, label: 'AI Quiz' },
-    { id: 'analytics', icon: BarChart3, label: 'Analytics' },
+    { id: 'ai', icon: MessageSquare, label: 'AI' },
+    { id: 'quiz', icon: GraduationCap, label: 'Quiz' },
+    { id: 'analytics', icon: BarChart3, label: 'Stats' },
     { id: 'profile', icon: User, label: 'Profile' },
+  ];
+
+  const bottomNavItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Home' },
+    { id: 'notes', icon: StickyNote, label: 'Notes' },
+    { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
+    { id: 'timer', icon: Timer, label: 'Timer' },
+    { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
   const handleTabChange = (id: string) => {
@@ -67,7 +75,7 @@ export default function Layout({
         <div className="p-6">
           <h1 className="text-xl font-bold tracking-tight text-indigo-600 flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-              S
+              <GraduationCap className="w-5 h-5" />
             </div>
             SmartStudent
           </h1>
@@ -135,7 +143,7 @@ export default function Layout({
               <div className="p-6 flex items-center justify-between">
                 <h1 className="text-xl font-bold tracking-tight text-indigo-600 flex items-center gap-2">
                   <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                    S
+                    <GraduationCap className="w-5 h-5" />
                   </div>
                   SmartStudent
                 </h1>
@@ -188,53 +196,87 @@ export default function Layout({
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
-          <div className="flex items-center gap-4">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <header className="h-14 lg:h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="lg:hidden" 
+              className="lg:hidden h-9 w-9" 
               onClick={() => setIsMobileMenuOpen(true)}
             >
               <Menu className="w-5 h-5" />
             </Button>
-            <h2 className="text-lg font-semibold capitalize truncate">{activeTab}</h2>
+            <h2 className="text-base lg:text-lg font-bold capitalize truncate text-slate-800">
+              {activeTab === 'dashboard' ? 'SmartStudent' : activeTab}
+            </h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <NotificationCenter 
               notifications={notifications} 
               onMarkAsRead={onMarkAsRead} 
               onClearAll={onClearAll} 
             />
             <Button 
+              variant="ghost" 
+              size="icon" 
+              className="sm:hidden h-9 w-9"
+              onClick={() => setActiveTab('settings')}
+            >
+              <Settings className="w-5 h-5 text-slate-600" />
+            </Button>
+            <Button 
               variant="outline" 
               size="sm" 
-              className="hidden sm:flex"
+              className="hidden sm:flex h-9"
               onClick={() => setActiveTab('settings')}
             >
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
-            <Avatar className="w-8 h-8 lg:hidden">
+            <Avatar className="w-8 h-8 hidden lg:flex">
               <AvatarImage src={user?.photoURL} />
               <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
             </Avatar>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc]">
+        <main className="flex-1 overflow-y-auto bg-[#f8fafc] pb-20 lg:pb-8">
           <div className="max-w-7xl mx-auto p-4 lg:p-8">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.2 }}
             >
               {children}
             </motion.div>
           </div>
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 px-2 py-1.5 flex items-center justify-around z-40 pb-safe">
+          {bottomNavItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleTabChange(item.id)}
+              className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all ${
+                activeTab === item.id 
+                  ? 'text-indigo-600' 
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'fill-indigo-50' : ''}`} />
+              <span className="text-[10px] font-medium">{item.label}</span>
+              {activeTab === item.id && (
+                <motion.div 
+                  layoutId="activeTab"
+                  className="absolute -bottom-1.5 w-1 h-1 bg-indigo-600 rounded-full"
+                />
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   );
