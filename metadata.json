@@ -1,0 +1,7 @@
+{
+  "name": "Smart Student Assistant",
+  "description": "A comprehensive assistant for students featuring notes, tasks, weather, AI study help, and productivity analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
