@@ -13,7 +13,8 @@ import {
   GraduationCap,
   Menu,
   X,
-  Timer
+  Timer,
+  Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -49,9 +50,10 @@ export default function Layout({
     { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
     { id: 'timer', icon: Timer, label: 'Timer' },
     { id: 'weather', icon: CloudSun, label: 'Weather' },
-    { id: 'ai', icon: MessageSquare, label: 'AI' },
-    { id: 'quiz', icon: GraduationCap, label: 'Quiz' },
-    { id: 'analytics', icon: BarChart3, label: 'Stats' },
+    { id: 'ai', icon: MessageSquare, label: 'AI Assistant' },
+    { id: 'ai-quiz', icon: Brain, label: 'AI Quiz' },
+    { id: 'quiz', icon: GraduationCap, label: 'Quizzes' },
+    { id: 'analytics', icon: BarChart3, label: 'Analytics' },
     { id: 'profile', icon: User, label: 'Profile' },
   ];
 
@@ -69,56 +71,63 @@ export default function Layout({
   };
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col shrink-0">
+      <aside className="hidden lg:flex w-64 bg-card border-r border-border flex-col shrink-0">
         <div className="p-6">
-          <h1 className="text-xl font-bold tracking-tight text-indigo-600 flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+          <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
+            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
               <GraduationCap className="w-5 h-5" />
             </div>
-            SmartStudent
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+              SmartStudent
+            </span>
           </h1>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1.5">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                 activeTab === item.id 
-                  ? 'bg-indigo-50 text-indigo-600' 
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/10' 
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               }`}
             >
-              <item.icon className="w-4 h-4" />
+              <item.icon className={`w-4 h-4 ${activeTab === item.id ? 'animate-pulse' : ''}`} />
               {item.label}
             </button>
           ))}
         </nav>
 
         <div className="p-4 mt-auto">
-          <Separator className="mb-4" />
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={user?.photoURL} />
-              <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
-            </Avatar>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate">{user?.displayName || 'Student'}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+          <div className="glass rounded-2xl p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar className="w-10 h-10 border-2 border-background shadow-sm">
+                <AvatarImage src={user?.photoURL} />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                  {user?.displayName?.[0] || <User className="w-5 h-5" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-bold truncate">{user?.displayName || 'Student'}</p>
+                <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider font-semibold">
+                  {user?.role || 'User'}
+                </p>
+              </div>
             </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-9"
+              onClick={onLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50"
-            onClick={onLogout}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
         </div>
       </aside>
 
@@ -131,36 +140,36 @@ export default function Layout({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
             />
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-white z-50 lg:hidden flex flex-col shadow-2xl"
+              className="fixed inset-y-0 left-0 w-72 bg-card z-50 lg:hidden flex flex-col shadow-2xl border-r border-border"
             >
               <div className="p-6 flex items-center justify-between">
-                <h1 className="text-xl font-bold tracking-tight text-indigo-600 flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
+                  <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground">
                     <GraduationCap className="w-5 h-5" />
                   </div>
                   SmartStudent
                 </h1>
-                <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="rounded-full">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
 
-              <nav className="flex-1 px-4 space-y-1">
+              <nav className="flex-1 px-4 space-y-1.5">
                 {navItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleTabChange(item.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors ${
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-base font-medium transition-all ${
                       activeTab === item.id 
-                        ? 'bg-indigo-50 text-indigo-600' 
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' 
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
@@ -170,25 +179,30 @@ export default function Layout({
               </nav>
 
               <div className="p-6 mt-auto">
-                <Separator className="mb-6" />
-                <div className="flex items-center gap-3 mb-6">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={user?.photoURL} />
-                    <AvatarFallback><User className="w-5 h-5" /></AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-semibold truncate">{user?.displayName || 'Student'}</p>
-                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                <div className="glass rounded-3xl p-5">
+                  <div className="flex items-center gap-4 mb-5">
+                    <Avatar className="w-12 h-12 border-2 border-background shadow-md">
+                      <AvatarImage src={user?.photoURL} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                        {user?.displayName?.[0] || <User className="w-6 h-6" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-base font-bold truncate">{user?.displayName || 'Student'}</p>
+                      <p className="text-xs text-muted-foreground truncate uppercase tracking-widest font-bold">
+                        {user?.role || 'User'}
+                      </p>
+                    </div>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-center text-destructive border-destructive/20 hover:bg-destructive/10 hover:border-destructive/30 rounded-2xl h-11 font-bold"
+                    onClick={onLogout}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-center text-red-600 border-red-100 hover:bg-red-50 hover:border-red-200"
-                  onClick={onLogout}
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
               </div>
             </motion.aside>
           </>
@@ -197,57 +211,60 @@ export default function Layout({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <header className="h-14 lg:h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
+        <header className="h-14 lg:h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="lg:hidden h-9 w-9" 
+              className="lg:hidden h-10 w-10 rounded-xl" 
               onClick={() => setIsMobileMenuOpen(true)}
             >
               <Menu className="w-5 h-5" />
             </Button>
-            <h2 className="text-base lg:text-lg font-bold capitalize truncate text-slate-800">
-              {activeTab === 'dashboard' ? 'SmartStudent' : activeTab}
+            <h2 className="text-base lg:text-lg font-bold capitalize truncate text-foreground">
+              {activeTab === 'dashboard' ? 'Overview' : activeTab}
             </h2>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2">
             <NotificationCenter 
               notifications={notifications} 
               onMarkAsRead={onMarkAsRead} 
               onClearAll={onClearAll} 
             />
+            <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block" />
             <Button 
               variant="ghost" 
               size="icon" 
-              className="sm:hidden h-9 w-9"
+              className="sm:hidden h-10 w-10 rounded-xl"
               onClick={() => setActiveTab('settings')}
             >
-              <Settings className="w-5 h-5 text-slate-600" />
+              <Settings className="w-5 h-5 text-muted-foreground" />
             </Button>
             <Button 
-              variant="outline" 
+              variant="secondary" 
               size="sm" 
-              className="hidden sm:flex h-9"
+              className="hidden sm:flex h-9 rounded-xl font-medium"
               onClick={() => setActiveTab('settings')}
             >
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
-            <Avatar className="w-8 h-8 hidden lg:flex">
+            <Avatar className="w-9 h-9 hidden lg:flex border-2 border-background shadow-sm ml-2">
               <AvatarImage src={user?.photoURL} />
-              <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                {user?.displayName?.[0]}
+              </AvatarFallback>
             </Avatar>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc] pb-20 lg:pb-8">
+        <main className="flex-1 overflow-y-auto bg-background pb-24 lg:pb-8">
           <div className="max-w-7xl mx-auto p-4 lg:p-8">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
               {children}
             </motion.div>
@@ -255,25 +272,26 @@ export default function Layout({
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 px-2 py-1.5 flex items-center justify-around z-40 pb-safe">
+        <nav className="lg:hidden fixed bottom-4 left-4 right-4 glass rounded-3xl px-2 py-2 flex items-center justify-around z-40 shadow-2xl border border-white/20">
           {bottomNavItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleTabChange(item.id)}
-              className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all ${
+              className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all duration-300 ${
                 activeTab === item.id 
-                  ? 'text-indigo-600' 
-                  : 'text-slate-400 hover:text-slate-600'
+                  ? 'text-primary' 
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'fill-indigo-50' : ''}`} />
-              <span className="text-[10px] font-medium">{item.label}</span>
               {activeTab === item.id && (
                 <motion.div 
-                  layoutId="activeTab"
-                  className="absolute -bottom-1.5 w-1 h-1 bg-indigo-600 rounded-full"
+                  layoutId="activeTabMobile"
+                  className="absolute inset-0 bg-primary/10 rounded-2xl -z-10"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
+              <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
+              <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
             </button>
           ))}
         </nav>

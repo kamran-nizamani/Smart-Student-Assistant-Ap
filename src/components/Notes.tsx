@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { StickyNote, Plus, Search, Trash2, Edit3, Calendar } from 'lucide-react';
+import { StickyNote, Plus, Search, Trash2, Edit3, Calendar, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Note {
   id: string;
@@ -12,40 +14,80 @@ interface Note {
   content: string;
   date: number;
   tags: string[];
+  userId: string;
 }
 
 export default function Notes() {
-  const [notes, setNotes] = useState<Note[]>([
-    { id: '1', title: 'Math Formulas', content: 'Quadratic formula: x = (-b ± √(b² - 4ac)) / 2a', date: Date.now(), tags: ['math'] },
-    { id: '2', title: 'History Dates', content: 'French Revolution: 1789', date: Date.now() - 86400000, tags: ['history'] }
-  ]);
+  const { user } = useAuth();
+  const [notes, setNotes] = useState<Note[]>([]);
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const handleAddNote = () => {
+  const fetchNotes = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/notes', {
+        headers: { 'x-user-id': user.uid }
+      });
+      if (res.ok) {
+        setNotes(await res.json());
+      }
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotes();
+  }, [user]);
+
+  const handleAddNote = async () => {
+    if (!user) return;
     if (!newTitle.trim() || !newContent.trim()) {
       toast.error('Please fill in both title and content');
       return;
     }
-    const newNote: Note = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: newTitle,
-      content: newContent,
-      date: Date.now(),
-      tags: []
-    };
-    setNotes([newNote, ...notes]);
-    setNewTitle('');
-    setNewContent('');
-    setIsAdding(false);
-    toast.success('Note added!');
+
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTitle,
+          content: newContent,
+          date: Date.now(),
+          tags: [],
+          userId: user.uid
+        }),
+      });
+
+      if (res.ok) {
+        setNewTitle('');
+        setNewContent('');
+        setIsAdding(false);
+        toast.success('Note added!');
+        fetchNotes();
+      }
+    } catch (error) {
+      console.error("Error adding note:", error);
+    }
   };
 
-  const deleteNote = (id: string) => {
-    setNotes(notes.filter(n => n.id !== id));
-    toast.success('Note deleted');
+  const deleteNote = async (id: string) => {
+    try {
+      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Note deleted');
+        fetchNotes();
+      }
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
   };
 
   const filteredNotes = notes.filter(n => 
@@ -54,78 +96,142 @@ export default function Notes() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Study Notes</h1>
-          <p className="text-slate-500">Capture and organize your study materials.</p>
+          <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+            Study Notes
+          </h1>
+          <p className="text-muted-foreground font-medium mt-1">Capture and organize your study materials.</p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setIsAdding(true)}>
+        <Button 
+          className="rounded-xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all" 
+          onClick={() => setIsAdding(true)}
+        >
           <Plus className="w-4 h-4 mr-2" />
           New Note
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+      <div className="relative group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <Input 
           placeholder="Search notes..." 
-          className="pl-10" 
+          className="pl-10 py-6 bg-card/50 border-border rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none transition-all font-medium" 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {isAdding && (
-        <Card className="border-indigo-200 bg-indigo-50/30">
-          <CardHeader>
-            <CardTitle>Create New Note</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input 
-              placeholder="Title" 
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-            />
-            <textarea 
-              className="w-full min-h-[100px] p-3 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Content..."
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
-              <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleAddNote}>Save Note</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredNotes.map((note) => (
-          <Card key={note.id} className="group hover:border-indigo-200 transition-colors">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{note.title}</CardTitle>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => deleteNote(note.id)}>
-                    <Trash2 className="w-4 h-4" />
+      <AnimatePresence>
+        {isAdding && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          >
+            <Card className="w-full max-w-lg glass border-none shadow-2xl rounded-3xl overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-2xl font-black">Create Note</CardTitle>
+                  <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)} className="rounded-full">
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Calendar className="w-3 h-3" />
-                {new Date(note.date).toLocaleDateString()}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
-                {note.content}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Title</label>
+                  <Input 
+                    placeholder="Note title" 
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="py-6 bg-background/50 border-border rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none transition-all font-bold text-lg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Content</label>
+                  <textarea 
+                    className="w-full min-h-[150px] p-4 bg-background/50 border border-border rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none transition-all font-medium resize-none"
+                    placeholder="Write your thoughts..."
+                    value={newContent}
+                    onChange={(e) => setNewContent(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+              <CardFooter className="pt-2 pb-6 px-6 flex gap-3">
+                <Button variant="ghost" onClick={() => setIsAdding(false)} className="flex-1 rounded-xl font-bold">Cancel</Button>
+                <Button onClick={handleAddNote} className="flex-1 py-6 rounded-xl font-bold text-base shadow-xl shadow-primary/20">Save Note</Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-48 rounded-3xl bg-muted animate-pulse" />
+          ))}
+        </div>
+      ) : filteredNotes.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredNotes.map((note) => (
+            <motion.div
+              key={note.id}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group"
+            >
+              <Card className="glass border-none card-hover overflow-hidden h-full flex flex-col relative">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/20" />
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg font-black group-hover:text-primary transition-colors line-clamp-1">
+                      {note.title}
+                    </CardTitle>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive" 
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(note.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <p className="text-sm text-muted-foreground font-medium line-clamp-4 leading-relaxed">
+                    {note.content}
+                  </p>
+                </CardContent>
+                <CardFooter className="pt-0 pb-4">
+                  <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold text-primary hover:bg-primary/10 w-full">
+                    <Edit3 className="w-3 h-3 mr-2" />
+                    Edit Note
+                  </Button>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 glass rounded-3xl">
+          <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mx-auto mb-6">
+            <StickyNote className="w-10 h-10" />
+          </div>
+          <h3 className="text-xl font-black">No notes yet</h3>
+          <p className="text-muted-foreground font-medium mt-2">Start capturing your study materials today!</p>
+        </div>
+      )}
     </div>
   );
 }

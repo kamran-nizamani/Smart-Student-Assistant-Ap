@@ -20,9 +20,17 @@ export const getStudyHelp = async (query: string) => {
 
 export const generateQuiz = async (subject: string, difficulty: string = 'medium') => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is missing or empty!");
+      throw new Error("API Key is missing");
+    }
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate a 5-question multiple choice quiz about ${subject} with ${difficulty} difficulty level.`,
+      contents: `Generate a high-quality 5-question multiple choice quiz about the subject: "${subject}". 
+      The difficulty level should be: ${difficulty}. 
+      Ensure the questions are challenging but fair. 
+      Provide 4 options for each question. 
+      Include a clear explanation for the correct answer.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

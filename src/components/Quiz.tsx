@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Brain, CheckCircle2, XCircle, ArrowRight, RotateCcw, Loader2, Sparkles, Timer } from 'lucide-react';
+import { Brain, CheckCircle2, XCircle, ArrowRight, RotateCcw, Loader2, Sparkles, Timer, User, BookOpen } from 'lucide-react';
 import { generateQuiz } from '@/src/lib/gemini';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Question {
   question: string;
@@ -18,7 +20,9 @@ interface Question {
 }
 
 export default function Quiz() {
+  const { profile } = useAuth();
   const [subject, setSubject] = useState('');
+  const [isCustomSubject, setIsCustomSubject] = useState(false);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'advance'>('medium');
   const [isLoading, setIsLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -57,8 +61,9 @@ export default function Quiz() {
       setSelectedAnswer(null);
       setIsAnswered(false);
       setTimeLeft(30);
-    } catch (error) {
-      toast.error('Failed to generate quiz. Please try again.');
+    } catch (error: any) {
+      console.error("Quiz Error:", error);
+      toast.error(`Failed to generate quiz: ${error.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +83,33 @@ export default function Quiz() {
     }
   };
 
+  const saveQuizResult = async (finalScore: number) => {
+    if (!profile) return;
+    
+    try {
+      const res = await fetch('/api/results', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': profile.uid
+        },
+        body: JSON.stringify({
+          quizId: `ai-${Date.now()}`,
+          studentId: profile.uid,
+          score: finalScore,
+          totalQuestions: questions.length,
+          subject: subject,
+          completedAt: new Date().toISOString()
+        }),
+      });
+      if (res.ok) {
+        toast.success('Your progress has been saved!');
+      }
+    } catch (error) {
+      console.error("Error saving result:", error);
+    }
+  };
+
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -86,6 +118,7 @@ export default function Quiz() {
       setTimeLeft(30);
     } else {
       setShowResults(true);
+      saveQuizResult(score);
     }
   };
 
@@ -115,19 +148,55 @@ export default function Quiz() {
             </div>
             <CardTitle className="text-2xl">AI Quiz Generator</CardTitle>
             <CardDescription>
-              Enter any subject or topic, and our AI will generate a custom quiz to test your knowledge.
+              Select a course or enter a topic, and our AI will generate a custom quiz for you.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="subject">What do you want to be quizzed on?</Label>
-              <Input 
-                id="subject"
-                placeholder="e.g. Quantum Physics, World War II, React Hooks..."
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleStartQuiz()}
-              />
+              <Label htmlFor="subject">Select Course or Topic</Label>
+              {profile?.subjects && profile.subjects.length > 0 && !isCustomSubject ? (
+                <div className="space-y-2">
+                  <Select value={subject} onValueChange={setSubject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose one of your courses..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profile.subjects.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-xs text-indigo-600" 
+                    onClick={() => {
+                      setIsCustomSubject(true);
+                      setSubject('');
+                    }}
+                  >
+                    Enter a custom topic instead
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Input 
+                    id="subject"
+                    placeholder="e.g. Quantum Physics, World War II, React Hooks..."
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleStartQuiz()}
+                  />
+                  {profile?.subjects && profile.subjects.length > 0 && (
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-xs text-indigo-600" 
+                      onClick={() => setIsCustomSubject(false)}
+                    >
+                      Back to my courses
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Select Difficulty</Label>
@@ -220,6 +289,27 @@ export default function Quiz() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+              <User className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Student</p>
+              <p className="text-sm font-bold text-slate-900">{profile?.displayName || 'Student'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Course</p>
+              <p className="text-sm font-bold text-slate-900">{subject}</p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="px-3 py-1">
             Question {currentQuestionIndex + 1} of {questions.length}
