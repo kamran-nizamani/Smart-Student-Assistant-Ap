@@ -80,7 +80,7 @@ export default function Layout({
               <GraduationCap className="w-5 h-5" />
             </div>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-              SmartStudent
+              Education 🎓
             </span>
           </h1>
         </div>
@@ -154,7 +154,7 @@ export default function Layout({
                   <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  SmartStudent
+                  Education 🎓
                 </h1>
                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="rounded-full">
                   <X className="w-5 h-5" />

@@ -1,6 +1,6 @@
 {
-  "name": "Smart Student Assistant",
-  "description": "A comprehensive assistant for students featuring notes, tasks, weather, AI study help, and productivity analytics.",
+  "name": "Education 🎓",
+  "description": "Your ultimate education assistant. Organize notes, track tasks, and excel in your studies with AI-powered help.",
   "requestFramePermissions": [
     "camera"
   ]

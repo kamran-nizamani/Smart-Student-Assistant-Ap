@@ -121,7 +121,7 @@ export default function App() {
   if (loading) return (
     <div className="flex flex-col justify-center items-center h-screen bg-background gap-4">
       <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Initializing SmartStudent</p>
+      <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Initializing Education 🎓</p>
     </div>
   );
 
