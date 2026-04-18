@@ -75,7 +75,7 @@ export default function Auth() {
           </motion.div>
         </div>
         <h2 className="mt-8 text-center text-4xl font-black tracking-tight text-foreground">
-          {isLogin ? 'Welcome Back' : 'Join Education 🎓'}
+          {isLogin ? 'Welcome Back' : 'Join SmartStudent'}
         </h2>
         <p className="mt-2 text-center text-sm font-medium text-muted-foreground">
           {isLogin ? 'Sign in to continue your journey' : 'Start your journey to academic excellence'}

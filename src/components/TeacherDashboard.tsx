@@ -36,12 +36,12 @@ export default function TeacherDashboard() {
         const [usersRes, quizzesRes, resultsRes] = await Promise.all([
           fetch('/api/users'),
           fetch('/api/quizzes', { headers }),
-          fetch('/api/results')
+          fetch('/api/results', { headers })
         ]);
 
         let students: any[] = [];
         if (usersRes.ok) {
-          const allUsers = await usersRes.ok ? await usersRes.json() : [];
+          const allUsers = await usersRes.json();
           students = allUsers.filter((u: any) => u.role === 'student');
           setStats(prev => ({ ...prev, totalStudents: students.length }));
         }

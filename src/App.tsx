@@ -23,6 +23,8 @@ import TeacherQuizzes from './pages/TeacherQuizzes';
 import AdminPanel from './pages/AdminPanel';
 import QuizTaking from './pages/QuizTaking';
 import Quiz from './components/Quiz';
+import AIStudyEngine from './components/AIStudyEngine';
+import GPATracker from './components/GPATracker';
 import { UserProfile, Grade, Progress, Notification } from './types';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from './contexts/AuthContext';
@@ -37,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Verifying Identity</p>
     </div>
   );
-  if (!user) return <Navigate to="/signup" />;
+  if (!user) return <Navigate to="/login" />;
   
   return <>{children}</>;
 };
@@ -121,7 +123,7 @@ export default function App() {
   if (loading) return (
     <div className="flex flex-col justify-center items-center h-screen bg-background gap-4">
       <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Initializing Education 🎓</p>
+      <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Initializing SmartStudent</p>
     </div>
   );
 
@@ -154,6 +156,10 @@ export default function App() {
         return <QuizList />;
       case 'ai-quiz':
         return <Quiz />;
+      case 'ai':
+        return <AIStudyEngine />;
+      case 'gpa':
+        return <GPATracker />;
       case 'timer':
         return <StudyTimer />;
       default:

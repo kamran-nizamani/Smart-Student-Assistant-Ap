@@ -1,6 +1,6 @@
 {
-  "name": "Education Assistant 🎓",
-  "short_name": "Education 🎓",
+  "name": "Smart Student Assistant",
+  "short_name": "SmartStudent",
   "description": "AI-powered study assistant for students",
   "start_url": "/",
   "display": "standalone",

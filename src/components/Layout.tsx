@@ -14,12 +14,16 @@ import {
   Menu,
   X,
   Timer,
-  Brain
+  Brain,
+  Search,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NotificationCenter from './NotificationCenter';
+import GlobalSearch from './GlobalSearch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,6 +56,7 @@ export default function Layout({
     { id: 'weather', icon: CloudSun, label: 'Weather' },
     { id: 'ai', icon: MessageSquare, label: 'AI Assistant' },
     { id: 'ai-quiz', icon: Brain, label: 'AI Quiz' },
+    { id: 'gpa', icon: Zap, label: 'GPA Tracker' },
     { id: 'quiz', icon: GraduationCap, label: 'Quizzes' },
     { id: 'analytics', icon: BarChart3, label: 'Analytics' },
     { id: 'profile', icon: User, label: 'Profile' },
@@ -80,7 +85,7 @@ export default function Layout({
               <GraduationCap className="w-5 h-5" />
             </div>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-              Education 🎓
+              SmartStudent
             </span>
           </h1>
         </div>
@@ -127,6 +132,11 @@ export default function Layout({
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-[10px] text-center font-black text-muted-foreground uppercase tracking-[0.2em]">
+                Developed by <span className="text-primary">Kamran Nizamani</span>
+              </p>
+            </div>
           </div>
         </div>
       </aside>
@@ -154,7 +164,7 @@ export default function Layout({
                   <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  Education 🎓
+                  SmartStudent
                 </h1>
                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="rounded-full">
                   <X className="w-5 h-5" />
@@ -202,6 +212,12 @@ export default function Layout({
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
                   </Button>
+                  <div className="mt-6 pt-6 border-t border-border/50">
+                    <p className="text-[11px] text-center font-black text-muted-foreground uppercase tracking-[0.2em] leading-relaxed">
+                      Developed by <br/>
+                      <span className="text-primary text-xs">Kamran Nizamani</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.aside>
@@ -224,6 +240,19 @@ export default function Layout({
             <h2 className="text-base lg:text-lg font-bold capitalize truncate text-foreground">
               {activeTab === 'dashboard' ? 'Overview' : activeTab}
             </h2>
+          </div>
+          <div className="flex-1 max-w-md mx-6 hidden sm:block">
+            <Popover>
+              <PopoverTrigger className="w-full">
+                <div className="flex w-full items-center px-4 justify-start text-muted-foreground font-medium rounded-xl h-9 border border-border/50 bg-muted/50 hover:bg-muted cursor-pointer transition-colors">
+                  <Search className="w-4 h-4 mr-2" />
+                  Search...
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-[500px] p-0 border-none shadow-2xl rounded-3xl" align="start">
+                <GlobalSearch onNavigate={handleTabChange} />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex items-center gap-2">
             <NotificationCenter 

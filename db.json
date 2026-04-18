@@ -1,0 +1,52 @@
+{
+  "users": [
+    {
+      "uid": "u_2o8slgv8c",
+      "email": "kamran@gmail.com",
+      "password": "123456",
+      "displayName": "Kamran",
+      "role": "student",
+      "subjects": [],
+      "dailyGoalMinutes": 120,
+      "createdAt": 1776538097933
+    }
+  ],
+  "notes": [],
+  "tasks": [],
+  "results": [],
+  "quizzes": [
+    {
+      "id": "q_sample_1",
+      "title": "Introduction to Biology",
+      "subject": "Biology",
+      "difficulty": "easy",
+      "questions": [
+        {
+          "question": "What is the powerhouse of the cell?",
+          "options": ["Nucleus", "Ribosome", "Mitochondria", "Golgi Body"],
+          "correctAnswer": "Mitochondria",
+          "explanation": "Mitochondria are known as the powerhouses of the cell because they generate most of the cell's supply of adenosine triphosphate (ATP)."
+        }
+      ],
+      "createdBy": "system",
+      "createdAt": "2026-04-18T10:00:00Z"
+    },
+    {
+      "id": "q_sample_2",
+      "title": "Quantum Physics Basics",
+      "subject": "Physics",
+      "difficulty": "hard",
+      "questions": [
+        {
+          "question": "Which principle states that it is impossible to simultaneously know the exact position and momentum of a particle?",
+          "options": ["Pauli Exclusion Principle", "Heisenberg Uncertainty Principle", "Schrodinger Equation", "Planck's Law"],
+          "correctAnswer": "Heisenberg Uncertainty Principle",
+          "explanation": "The Heisenberg Uncertainty Principle is a fundamental concept in quantum mechanics that defines the limits of precision for measuring certain pairs of physical properties."
+        }
+      ],
+      "createdBy": "system",
+      "createdAt": "2026-04-18T10:05:00Z"
+    }
+  ],
+  "notifications": []
+}

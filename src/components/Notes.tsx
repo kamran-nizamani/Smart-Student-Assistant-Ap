@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { StickyNote, Plus, Search, Trash2, Edit3, Calendar, X } from 'lucide-react';
+import { StickyNote, Plus, Search, Trash2, Edit3, Calendar, X, Sparkles, Brain, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { summarizeNote, generateQuizFromNote } from '../lib/gemini';
+import Markdown from 'react-markdown';
 
 interface Note {
   id: string;
@@ -25,6 +27,8 @@ export default function Notes() {
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
   const [loading, setLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
 
   const fetchNotes = async () => {
     if (!user) return;
@@ -90,6 +94,46 @@ export default function Notes() {
     }
   };
 
+  const handleSummarize = async (note: Note) => {
+    setAiLoading(note.id);
+    try {
+      const result = await summarizeNote(note.title, note.content);
+      setSummary(result || "Error generating summary.");
+    } catch (error) {
+      toast.error("AI could not summarize this note.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleGenerateQuiz = async (note: Note) => {
+    setAiLoading(note.id);
+    try {
+      const quizQuestions = await generateQuizFromNote(note.title, note.content);
+      // For this demo, we'll store it as a system quiz in db.json
+      const res = await fetch('/api/quizzes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Quiz: ${note.title}`,
+          subject: note.tags[0] || "General",
+          difficulty: "medium",
+          questions: quizQuestions,
+          createdBy: user?.uid,
+          createdAt: new Date().toISOString()
+        }),
+      });
+
+      if (res.ok) {
+        toast.success('AI Quiz generated based on this note!');
+      }
+    } catch (error) {
+      toast.error("AI could not generate a quiz.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
   const filteredNotes = notes.filter(n => 
     n.title.toLowerCase().includes(search.toLowerCase()) || 
     n.content.toLowerCase().includes(search.toLowerCase())
@@ -122,6 +166,44 @@ export default function Notes() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+
+      <AnimatePresence>
+        {summary && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          >
+            <Card className="w-full max-w-2xl glass border-none shadow-2xl rounded-3xl overflow-hidden flex flex-col max-h-[80vh]">
+              <CardHeader className="border-b border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl font-black">AI Summary</CardTitle>
+                      <CardDescription>Synthesized key points from your note.</CardDescription>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setSummary(null)} className="rounded-full">
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="overflow-y-auto p-6">
+                <div className="markdown-body">
+                  <Markdown>{summary}</Markdown>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-background/30 p-4 flex justify-end">
+                <Button onClick={() => setSummary(null)} className="rounded-xl font-bold">Close Summary</Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isAdding && (
@@ -213,8 +295,30 @@ export default function Notes() {
                     {note.content}
                   </p>
                 </CardContent>
-                <CardFooter className="pt-0 pb-4">
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold text-primary hover:bg-primary/10 w-full">
+                <CardFooter className="pt-0 pb-4 flex flex-col gap-2">
+                  <div className="flex gap-2 w-full">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 flex-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 active:scale-95 transition-all border-primary/20"
+                      onClick={() => handleSummarize(note)}
+                      disabled={!!aiLoading}
+                    >
+                      {aiLoading === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1.5" />}
+                      Summarize
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 flex-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-purple-600 hover:bg-purple-50 active:scale-95 transition-all border-purple-200"
+                      onClick={() => handleGenerateQuiz(note)}
+                      disabled={!!aiLoading}
+                    >
+                      {aiLoading === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3 mr-1.5" />}
+                      Generate Quiz
+                    </Button>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted w-full">
                     <Edit3 className="w-3 h-3 mr-2" />
                     Edit Note
                   </Button>
