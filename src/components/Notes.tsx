@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { summarizeNote, generateQuizFromNote } from '../lib/gemini';
 import Markdown from 'react-markdown';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Note {
   id: string;
@@ -30,24 +32,28 @@ export default function Notes() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
 
-  const fetchNotes = async () => {
-    if (!user) return;
-    try {
-      const res = await fetch('/api/notes', {
-        headers: { 'x-user-id': user.uid }
-      });
-      if (res.ok) {
-        setNotes(await res.json());
-      }
-    } catch (error) {
-      console.error("Error fetching notes:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchNotes();
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'notes'),
+      where('userId', '==', user.uid),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const noteList: Note[] = [];
+      snapshot.forEach((doc) => {
+        noteList.push({ id: doc.id, ...doc.data() } as Note);
+      });
+      setNotes(noteList);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching notes:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   const handleAddNote = async () => {
@@ -58,37 +64,28 @@ export default function Notes() {
     }
 
     try {
-      const res = await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTitle,
-          content: newContent,
-          date: Date.now(),
-          tags: [],
-          userId: user.uid
-        }),
+      await addDoc(collection(db, 'notes'), {
+        title: newTitle,
+        content: newContent,
+        date: Date.now(),
+        tags: [],
+        userId: user.uid
       });
 
-      if (res.ok) {
-        setNewTitle('');
-        setNewContent('');
-        setIsAdding(false);
-        toast.success('Note added!');
-        fetchNotes();
-      }
+      setNewTitle('');
+      setNewContent('');
+      setIsAdding(false);
+      toast.success('Note added!');
     } catch (error) {
       console.error("Error adding note:", error);
+      toast.error('Failed to add note');
     }
   };
 
   const deleteNote = async (id: string) => {
     try {
-      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Note deleted');
-        fetchNotes();
-      }
+      await deleteDoc(doc(db, 'notes', id));
+      toast.success('Note deleted');
     } catch (error) {
       console.error("Error deleting note:", error);
     }
@@ -110,24 +107,19 @@ export default function Notes() {
     setAiLoading(note.id);
     try {
       const quizQuestions = await generateQuizFromNote(note.title, note.content);
-      // For this demo, we'll store it as a system quiz in db.json
-      const res = await fetch('/api/quizzes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `Quiz: ${note.title}`,
-          subject: note.tags[0] || "General",
-          difficulty: "medium",
-          questions: quizQuestions,
-          createdBy: user?.uid,
-          createdAt: new Date().toISOString()
-        }),
+      
+      await addDoc(collection(db, 'quizzes'), {
+        title: `Quiz: ${note.title}`,
+        subject: note.tags[0] || "General",
+        difficulty: "medium",
+        questions: quizQuestions,
+        createdBy: user?.uid,
+        createdAt: Date.now()
       });
 
-      if (res.ok) {
-        toast.success('AI Quiz generated based on this note!');
-      }
+      toast.success('AI Quiz generated based on this note!');
     } catch (error) {
+      console.error(error);
       toast.error("AI could not generate a quiz.");
     } finally {
       setAiLoading(null);

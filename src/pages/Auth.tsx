@@ -4,10 +4,17 @@ import { GraduationCap, Mail, Lock, User, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider,
+  updateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db, googleProvider } from '../lib/firebase';
 
 export default function Auth() {
-  const { login } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(location.pathname === '/login');
@@ -23,37 +30,69 @@ export default function Auth() {
     setLoading(true);
     setError('');
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const body = isLogin 
-        ? { email, password }
-        : { email, password, displayName, role };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast.success('Welcome back!');
+      } else {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        await updateProfile(user, { displayName });
+        
+        // Create Firestore profile
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: displayName,
+          role: role,
+          subjects: [],
+          dailyGoalMinutes: 120,
+          createdAt: Date.now()
+        });
+        
+        toast.success('Account created successfully!');
       }
-
-      login(data);
-      toast.success(isLogin ? 'Welcome back!' : 'Account created successfully!');
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
-      toast.error(err.message || 'Authentication failed');
+      const message = err.code === 'auth/user-not-found' ? 'User not found' : 
+                     err.code === 'auth/wrong-password' ? 'Incorrect password' : 
+                     err.message;
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
-    toast.info("Google login is disabled in 'Direct' mode. Please use Email/Password.");
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!userDoc.exists()) {
+        // New user from Google, use current role selection
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          role: role,
+          subjects: [],
+          dailyGoalMinutes: 120,
+          createdAt: Date.now()
+        });
+      }
+      
+      toast.success('Signed in with Google!');
+      navigate('/');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

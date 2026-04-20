@@ -8,6 +8,8 @@ import { Plus, Trash2, Calendar, CheckCircle2, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Task {
   id: string;
@@ -26,24 +28,28 @@ export default function Tasks() {
   const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
   const [loading, setLoading] = useState(true);
 
-  const fetchTasks = async () => {
-    if (!user) return;
-    try {
-      const res = await fetch('/api/tasks', {
-        headers: { 'x-user-id': user.uid }
-      });
-      if (res.ok) {
-        setTasks(await res.json());
-      }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchTasks();
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'tasks'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const taskList: Task[] = [];
+      snapshot.forEach((doc) => {
+        taskList.push({ id: doc.id, ...doc.data() } as Task);
+      });
+      setTasks(taskList);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching tasks:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   const addTask = async () => {
@@ -51,35 +57,26 @@ export default function Tasks() {
     if (!newTask.trim()) return;
 
     try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: newTask,
-          completed: false,
-          priority: priority,
-          userId: user.uid,
-          createdAt: Date.now()
-        }),
+      await addDoc(collection(db, 'tasks'), {
+        text: newTask,
+        completed: false,
+        priority: priority,
+        userId: user.uid,
+        createdAt: Date.now()
       });
-      if (res.ok) {
-        setNewTask('');
-        toast.success('Task added!');
-        fetchTasks();
-      }
+      setNewTask('');
+      toast.success('Task added!');
     } catch (error) {
       console.error("Error adding task:", error);
+      toast.error('Failed to add task');
     }
   };
 
   const toggleTask = async (id: string, completed: boolean) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: !completed }),
+      await updateDoc(doc(db, 'tasks', id), {
+        completed: !completed
       });
-      if (res.ok) fetchTasks();
     } catch (error) {
       console.error("Error updating task:", error);
     }
@@ -87,11 +84,8 @@ export default function Tasks() {
 
   const deleteTask = async (id: string) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Task deleted');
-        fetchTasks();
-      }
+      await deleteDoc(doc(db, 'tasks', id));
+      toast.success('Task deleted');
     } catch (error) {
       console.error("Error deleting task:", error);
     }

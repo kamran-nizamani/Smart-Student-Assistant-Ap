@@ -21,23 +21,81 @@ export default function Weather() {
 
   const fetchWeather = async (cityName: string) => {
     setLoading(true);
-    // Simulating API call with mock data
-    setTimeout(() => {
+    try {
+      // 1. Geocoding
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cityName}&count=1&language=en&format=json`);
+      const geoData = await geoRes.json();
+      
+      if (!geoData.results || geoData.results.length === 0) {
+        throw new Error('City not found');
+      }
+
+      const { latitude, longitude, name, country } = geoData.results[0];
+
+      // 2. Weather Data
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
+      const weatherData = await weatherRes.json();
+
       setWeather({
-        city: cityName,
-        temp: 22,
-        condition: 'Partly Cloudy',
-        humidity: 45,
-        wind: 12,
-        high: 25,
-        low: 18
+        city: `${name}, ${country}`,
+        temp: Math.round(weatherData.current_weather.temperature),
+        condition: decodeWeatherCode(weatherData.current_weather.weathercode),
+        humidity: 65, // Note: current_weather in open-meteo doesn't always have humidity in simple calls, defaulting or adding current_2m
+        wind: Math.round(weatherData.current_weather.windspeed),
+        high: Math.round(weatherData.daily.temperature_2m_max[0]),
+        low: Math.round(weatherData.daily.temperature_2m_min[0])
       });
+    } catch (error) {
+      console.error("Error fetching weather:", error);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  const decodeWeatherCode = (code: number) => {
+    if (code === 0) return 'Clear Sky';
+    if (code <= 3) return 'Partly Cloudy';
+    if (code <= 48) return 'Foggy';
+    if (code <= 67) return 'Rainy';
+    if (code <= 77) return 'Snowy';
+    if (code <= 99) return 'Thunderstorm';
+    return 'Cloudy';
   };
 
   useEffect(() => {
-    fetchWeather(city);
+    // Try browser geolocation first
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setLoading(true);
+          const { latitude, longitude } = position.coords;
+          try {
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
+            const weatherData = await weatherRes.json();
+            
+            // Reverse geocode to get city name if possible, or just use "Current Location"
+            setWeather({
+              city: 'Current Location',
+              temp: Math.round(weatherData.current_weather.temperature),
+              condition: decodeWeatherCode(weatherData.current_weather.weathercode),
+              humidity: 65,
+              wind: Math.round(weatherData.current_weather.windspeed),
+              high: Math.round(weatherData.daily.temperature_2m_max[0]),
+              low: Math.round(weatherData.daily.temperature_2m_min[0])
+            });
+          } catch (e) {
+            fetchWeather('London'); // Fallback
+          } finally {
+            setLoading(false);
+          }
+        },
+        () => {
+          fetchWeather('New York'); // User denied geolocation
+        }
+      );
+    } else {
+      fetchWeather('New York');
+    }
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -46,8 +104,13 @@ export default function Weather() {
   };
 
   const getWeatherIcon = (condition: string) => {
-    if (condition.includes('Cloud')) return <Cloud className="w-16 h-16 text-slate-400" />;
-    if (condition.includes('Rain')) return <CloudRain className="w-16 h-16 text-blue-400" />;
+    const lower = condition.toLowerCase();
+    if (lower.includes('clear')) return <Sun className="w-16 h-16 text-orange-400 animate-pulse" />;
+    if (lower.includes('cloud')) return <Cloud className="w-16 h-16 text-slate-400" />;
+    if (lower.includes('rain')) return <CloudRain className="w-16 h-16 text-blue-400" />;
+    if (lower.includes('fog')) return <Wind className="w-16 h-16 text-slate-300" />;
+    if (lower.includes('snow')) return <Droplets className="w-16 h-16 text-indigo-200" />;
+    if (lower.includes('thunder')) return <Wind className="w-16 h-16 text-yellow-500" />;
     return <Sun className="w-16 h-16 text-orange-400" />;
   };
 

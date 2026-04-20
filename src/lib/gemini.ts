@@ -26,25 +26,26 @@ export const generateQuiz = async (subject: string, difficulty: string = 'medium
     }
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate a high-quality 5-question multiple choice quiz about the subject: "${subject}". 
-      The difficulty level should be: ${difficulty}. 
-      Ensure the questions are challenging but fair. 
-      Provide 4 options for each question. 
-      Include a clear explanation for the correct answer.`,
+      contents: `You are an expert academic examiner. Create a comprehensive 5-question multiple choice quiz about "${subject}" at a ${difficulty} difficulty level.
+      Each question must be thought-provoking and test conceptual understanding.
+      Provide exactly 4 distinct options per question.
+      Include a detailed explanation that clarifies why the correct answer is right and why others are potentially misleading.`,
       config: {
+        systemInstruction: "You generate high-quality academic assessments. Your output must be a valid JSON array of objects.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              question: { type: Type.STRING },
+              question: { type: Type.STRING, description: "The quiz question text" },
               options: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+                type: Type.ARRAY, 
+                items: { type: Type.STRING },
+                description: "Exactly 4 multiple choice options"
               },
-              correctAnswer: { type: Type.STRING },
-              explanation: { type: Type.STRING }
+              correctAnswer: { type: Type.STRING, description: "The exact string of the correct option" },
+              explanation: { type: Type.STRING, description: "Educational explanation of the answer" }
             },
             required: ["question", "options", "correctAnswer", "explanation"]
           }

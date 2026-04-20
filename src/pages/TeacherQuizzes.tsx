@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { PlusCircle, Users } from 'lucide-react';
 import { generateQuiz } from '../lib/gemini';
 import { toast } from 'sonner';
+import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function TeacherQuizzes() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -13,29 +15,29 @@ export default function TeacherQuizzes() {
   const [newQuizDifficulty, setNewQuizDifficulty] = useState('medium');
   const { user } = useAuth();
 
-  const fetchData = async () => {
-    if (!user) return;
-    try {
-      const headers = { 'x-user-id': user.uid };
-      const [qRes, rRes] = await Promise.all([
-        fetch('/api/quizzes', { headers }),
-        fetch('/api/results', { headers })
-      ]);
-      
-      if (qRes.ok) {
-        const allQuizzes = await qRes.json();
-        setQuizzes(allQuizzes.filter((q: any) => q.createdBy === user.uid));
-      }
-      if (rRes.ok) setResults(await rRes.json());
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
+    if (!user) return;
+
+    // Teacher's quizzes
+    const qQuizzes = query(collection(db, 'quizzes'), where('createdBy', '==', user.uid));
+    const unsubscribeQuizzes = onSnapshot(qQuizzes, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setQuizzes(list.sort((a, b) => b.createdAt - a.createdAt));
+      setLoading(false);
+    });
+
+    // All results (for stats)
+    const unsubscribeResults = onSnapshot(collection(db, 'results'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setResults(list);
+    });
+
+    return () => {
+      unsubscribeQuizzes();
+      unsubscribeResults();
+    };
   }, [user]);
 
   const handleCreateQuiz = async (e: React.FormEvent) => {
@@ -46,30 +48,17 @@ export default function TeacherQuizzes() {
     try {
       const questions = await generateQuiz(newQuizSubject, newQuizDifficulty);
       
-      const quizData = {
-        id: `quiz-${Date.now()}`,
+      await addDoc(collection(db, 'quizzes'), {
         title: `${newQuizSubject} Quiz`,
         subject: newQuizSubject,
         difficulty: newQuizDifficulty,
         questions: questions,
         createdBy: user.uid,
-        createdAt: new Date().toISOString()
-      };
-      
-      const res = await fetch('/api/quizzes', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user.uid
-        },
-        body: JSON.stringify(quizData),
+        createdAt: Date.now()
       });
 
-      if (res.ok) {
-        toast.success("Quiz created successfully!");
-        setNewQuizSubject('');
-        fetchData();
-      }
+      toast.success("Quiz created successfully!");
+      setNewQuizSubject('');
     } catch (error) {
       console.error("Error creating quiz:", error);
       toast.error("Failed to create quiz");

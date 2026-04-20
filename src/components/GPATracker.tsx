@@ -8,6 +8,8 @@ import { GraduationCap, TrendingUp, Plus, Trash2, Award } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Grade {
   id: string;
@@ -15,6 +17,7 @@ interface Grade {
   grade: number; // 0.0 - 4.0
   semester: string;
   userId: string;
+  date: number;
 }
 
 export default function GPATracker() {
@@ -25,22 +28,22 @@ export default function GPATracker() {
   const [newSemester, setNewSemester] = useState('Fall 2025');
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const fetchGrades = async () => {
-    if (!user) return;
-    try {
-      const res = await fetch('/api/grades', {
-        headers: { 'x-user-id': user.uid }
-      });
-      if (res.ok) {
-        setGrades(await res.json());
-      }
-    } catch (error) {
-      console.error("Error fetching grades:", error);
-    }
-  };
-
   useEffect(() => {
-    fetchGrades();
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'grades'),
+      where('userId', '==', user.uid),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Grade[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Grade));
+      setGrades(list);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function GPATracker() {
   }, [grades]);
 
   const renderChart = () => {
-    const data = grades.sort((a, b) => a.semester.localeCompare(b.semester));
+    const data = [...grades].sort((a, b) => a.semester.localeCompare(b.semester));
     const margin = { top: 20, right: 30, bottom: 40, left: 40 };
     const width = 600 - margin.left - margin.right;
     const height = 300 - margin.top - margin.bottom;
@@ -131,22 +134,16 @@ export default function GPATracker() {
     }
 
     try {
-      const res = await fetch('/api/grades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
-        body: JSON.stringify({
-          subject: newSubject,
-          grade: parseFloat(newGrade),
-          semester: newSemester,
-          userId: user.uid
-        })
+      await addDoc(collection(db, 'grades'), {
+        subject: newSubject,
+        grade: parseFloat(newGrade),
+        semester: newSemester,
+        userId: user.uid,
+        date: Date.now()
       });
 
-      if (res.ok) {
-        setNewSubject('');
-        toast.success('Grade added to tracker');
-        fetchGrades();
-      }
+      setNewSubject('');
+      toast.success('Grade added to tracker');
     } catch (error) {
       console.error("Error adding grade:", error);
     }
@@ -154,11 +151,8 @@ export default function GPATracker() {
 
   const deleteGrade = async (id: string) => {
     try {
-      const res = await fetch(`/api/grades/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Grade removed');
-        fetchGrades();
-      }
+      await deleteDoc(doc(db, 'grades', id));
+      toast.success('Grade removed');
     } catch (error) {
       console.error("Error deleting grade:", error);
     }

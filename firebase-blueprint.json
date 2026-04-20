@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile data including role and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "teacher", "admin"] },
+        "dailyGoalMinutes": { "type": "number" },
+        "subjects": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "Student notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "title", "content"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "To-do items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "content": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "content"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Academic quizzes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "question": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctAnswer": { "type": "string" },
+              "explanation": { "type": "string" }
+            }
+          }
+        },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "Result": {
+      "title": "Quiz Result",
+      "description": "Student performance on quizzes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "quizId": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "completedAt": { "type": "number" },
+        "subject": { "type": "string" }
+      }
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Teacher assigned work",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "teacherId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "Submission": {
+      "title": "Assignment Submission",
+      "description": "Student response to an assignment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["submitted", "graded"] },
+        "score": { "type": "number" },
+        "feedback": { "type": "string" },
+        "submittedAt": { "type": "number" }
+      }
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alerts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "Grade": {
+      "title": "Academic Grade",
+      "description": "Logged grades for GPA tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "grade": { "type": "number" },
+        "semester": { "type": "string" },
+        "date": { "type": "number" }
+      },
+      "required": ["userId", "subject", "grade"]
+    },
+    "Progress": {
+      "title": "Student Progress",
+      "description": "Learning progress tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "subject": { "type": "string" },
+        "completed": { "type": "number" },
+        "total": { "type": "number" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["studentId", "subject"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/notes/{noteId}": { "schema": "Note", "description": "User notes" },
+    "/tasks/{taskId}": { "schema": "Task", "description": "User tasks" },
+    "/quizzes/{quizId}": { "schema": "Quiz", "description": "Global quizzes" },
+    "/results/{resultId}": { "schema": "Result", "description": "Quiz results per student" },
+    "/assignments/{asgnId}": { "schema": "Assignment", "description": "Global assignments" },
+    "/submissions/{subId}": { "schema": "Submission", "description": "Assignment submissions" },
+    "/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" },
+    "/grades/{gradeId}": { "schema": "Grade", "description": "GPA tracker grades" },
+    "/progress/{progressId}": { "schema": "Progress", "description": "Student subject progress" }
+  }
+}

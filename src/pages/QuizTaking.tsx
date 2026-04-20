@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Clock, CheckCircle, XCircle, User, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function QuizTaking() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -20,16 +22,14 @@ export default function QuizTaking() {
     const fetchQuiz = async () => {
       if (!quizId) return;
       try {
-        const res = await fetch('/api/quizzes');
-        if (res.ok) {
-          const quizzes = await res.json();
-          const found = quizzes.find((q: any) => q.id === quizId);
-          if (found) {
-            setQuiz(found);
-          } else {
-            toast.error("Quiz not found");
-            navigate('/');
-          }
+        const docRef = doc(db, 'quizzes', quizId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setQuiz({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          toast.error("Quiz not found");
+          navigate('/');
         }
       } catch (error) {
         console.error("Error fetching quiz:", error);
@@ -57,24 +57,17 @@ export default function QuizTaking() {
   const saveFinalResult = async (finalScore: number) => {
     if (!user || !quiz) return;
     try {
-      const res = await fetch('/api/results', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user.uid
-        },
-        body: JSON.stringify({
-          quizId: quiz.id,
-          studentId: user.uid,
-          score: finalScore,
-          totalQuestions: quiz.questions.length,
-          subject: quiz.subject,
-          completedAt: new Date().toISOString()
-        }),
+      await addDoc(collection(db, 'results'), {
+        quizId: quiz.id,
+        teacherId: quiz.createdBy, // Store teacherId for teacher access
+        studentId: user.uid,
+        studentName: user.displayName,
+        score: finalScore,
+        totalQuestions: quiz.questions.length,
+        subject: quiz.subject,
+        completedAt: Date.now()
       });
-      if (res.ok) {
-        toast.success("Quiz result saved!");
-      }
+      toast.success("Quiz result saved!");
     } catch (error) {
       console.error("Error saving result:", error);
       toast.error("Failed to save quiz result");

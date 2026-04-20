@@ -1,68 +1,86 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
-  user: { uid: string; email: string; displayName?: string } | null;
+  user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
-  login: (userData: any) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
   user: null, 
   profile: null, 
   loading: true,
-  login: () => {},
-  logout: () => {}
+  logout: async () => {}
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<{ uid: string; email: string; displayName?: string } | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const login = (userData: any) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    setProfile(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    setProfile(null);
-  };
-
   useEffect(() => {
-    const fetchUser = async () => {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        try {
-          const userData = JSON.parse(stored);
-          const res = await fetch(`/api/user/${userData.uid}`);
-          if (res.ok) {
-            const freshData = await res.json();
-            setUser(freshData);
-            setProfile(freshData);
-          } else {
-            logout();
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+      if (firebaseUser) {
+        // Fetch or create profile
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          const isAdminEmail = firebaseUser.email === 'kamrannizamani35@gmail.com';
+          const newProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || 'User',
+            role: isAdminEmail ? 'admin' : 'student',
+            subjects: [],
+            dailyGoalMinutes: 120,
+            createdAt: Date.now()
+          };
+          await setDoc(userDocRef, newProfile);
+          setProfile(newProfile);
+        } else {
+          const data = userDoc.data() as UserProfile;
+          // Auto-upgrade owner to admin if they aren't already
+          if (firebaseUser.email === 'kamrannizamani35@gmail.com' && data.role !== 'admin') {
+            await updateDoc(userDocRef, { role: 'admin' });
           }
-        } catch (error) {
-          console.error("Error fetching user session:", error);
-          logout();
+          setProfile(data);
         }
+
+        // Listen for profile changes
+        const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
+          if (doc.exists()) {
+            setProfile(doc.data() as UserProfile);
+          }
+        });
+
+        return () => {
+          unsubscribeProfile();
+        };
+      } else {
+        setProfile(null);
       }
       setLoading(false);
-    };
+    });
 
-    fetchUser();
+    return () => unsubscribeAuth();
   }, []);
 
+  const logout = async () => {
+    await auth.signOut();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { PlayCircle, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function QuizList() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -11,26 +13,28 @@ export default function QuizList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      try {
-        const headers = { 'x-user-id': user.uid };
-        
-        const [quizzesRes, resultsRes] = await Promise.all([
-          fetch('/api/quizzes', { headers }),
-          fetch('/api/results', { headers })
-        ]);
+    if (!user) return;
 
-        if (quizzesRes.ok) setQuizzes(await quizzesRes.json());
-        if (resultsRes.ok) setResults(await resultsRes.json());
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
+    // All quizzes
+    const unsubscribeQuizzes = onSnapshot(collection(db, 'quizzes'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setQuizzes(list);
+      setLoading(false);
+    });
+
+    // Student's results
+    const qResults = query(collection(db, 'results'), where('studentId', '==', user.uid));
+    const unsubscribeResults = onSnapshot(qResults, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setResults(list);
+    });
+
+    return () => {
+      unsubscribeQuizzes();
+      unsubscribeResults();
     };
-
-    fetchData();
   }, [user]);
 
   if (loading) return <div>Loading dashboard...</div>;

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Trash2, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function AdminPanel() {
   const [users, setUsers] = useState<any[]>([]);
@@ -8,36 +10,32 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
 
-  const fetchData = async () => {
-    try {
-      const [uRes, qRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/quizzes')
-      ]);
-      if (uRes.ok) setUsers(await uRes.json());
-      if (qRes.ok) setQuizzes(await qRes.json());
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
+    // All users
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setUsers(list);
+      setLoading(false);
+    });
+
+    // All quizzes
+    const unsubscribeQuizzes = onSnapshot(collection(db, 'quizzes'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setQuizzes(list);
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeQuizzes();
+    };
   }, []);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      const res = await fetch(`/api/user/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-      if (res.ok) {
-        toast.success("User role updated");
-        fetchData();
-      }
+      await updateDoc(doc(db, 'users', userId), { role: newRole });
+      toast.success("User role updated");
     } catch (error) {
       console.error("Error updating role:", error);
       toast.error("Failed to update role");
@@ -46,12 +44,9 @@ export default function AdminPanel() {
 
   const handleDeleteQuiz = async (quizId: string) => {
     try {
-      const res = await fetch(`/api/quizzes/${quizId}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success("Quiz deleted");
-        setDeletingQuizId(null);
-        fetchData();
-      }
+      await deleteDoc(doc(db, 'quizzes', quizId));
+      toast.success("Quiz deleted");
+      setDeletingQuizId(null);
     } catch (error) {
       console.error("Error deleting quiz:", error);
       toast.error("Failed to delete quiz");

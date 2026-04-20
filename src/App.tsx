@@ -25,10 +25,13 @@ import QuizTaking from './pages/QuizTaking';
 import Quiz from './components/Quiz';
 import AIStudyEngine from './components/AIStudyEngine';
 import GPATracker from './components/GPATracker';
+import Assignments from './components/Assignments';
 import { UserProfile, Grade, Progress, Notification } from './types';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from './contexts/AuthContext';
 import { toast } from 'sonner';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -49,6 +52,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
+  const [realGPAGrades, setRealGPAGrades] = useState<any[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   
   useEffect(() => {
@@ -57,63 +61,89 @@ export default function App() {
     if (tab) setActiveTab(tab);
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
     if (!user) return;
-    try {
-      const headers = { 'x-user-id': user.uid };
-      
-      const [notifsRes, gradesRes] = await Promise.all([
-        fetch('/api/notifications', { headers }),
-        fetch('/api/results', { headers })
-      ]);
 
-      if (notifsRes.ok) setNotifications(await notifsRes.json());
-      if (gradesRes.ok) {
-        const results = await gradesRes.json();
-        setGrades(results.map((r: any) => ({
-          id: r.id,
+    // Notifications
+    const qNotifs = query(collection(db, 'notifications'), where('userId', '==', user.uid));
+    const unsubscribeNotifs = onSnapshot(qNotifs, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setNotifications(list.sort((a, b) => b.createdAt - a.createdAt));
+    });
+
+    // Quiz Results (Grades)
+    const qResults = query(collection(db, 'results'), where('studentId', '==', user.uid));
+    const unsubscribeResults = onSnapshot(qResults, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => {
+        const r = doc.data();
+        list.push({
+          id: doc.id,
           studentId: r.studentId,
           subject: r.subject || 'Quiz',
           score: r.score,
           total: r.totalQuestions,
-          date: new Date(r.completedAt).getTime(),
+          date: r.completedAt,
           type: 'quiz'
-        })));
-      }
-    } catch (error) {
-      console.error("Error fetching app data:", error);
-    }
-  };
+        });
+      });
+      setGrades(list.sort((a, b) => b.date - a.date));
+    });
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000); // Poll every 10s for "real-time" feel
-    return () => clearInterval(interval);
+    // GPA Grades
+    const qGrades = query(collection(db, 'grades'), where('userId', '==', user.uid));
+    const unsubscribeGrades = onSnapshot(qGrades, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setRealGPAGrades(list.sort((a, b) => b.date - a.date));
+    });
+
+    // Progress
+    const qProgress = query(collection(db, 'progress'), where('studentId', '==', user.uid));
+    const unsubscribeProgress = onSnapshot(qProgress, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setProgress(list);
+    });
+
+    return () => {
+      unsubscribeNotifs();
+      unsubscribeResults();
+      unsubscribeGrades();
+      unsubscribeProgress();
+    };
   }, [user]);
 
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/user/${user.uid}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-      if (res.ok) {
-        toast.success("Profile updated");
-      }
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      toast.success("Profile updated");
     } catch (error) {
       console.error("Error updating profile:", error);
     }
   };
 
   const handleMarkAsRead = async (id: string) => {
-    // Mock implementation for direct mode
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      await updateDoc(doc(db, 'notifications', id), { read: true });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleClearAll = async () => {
-    setNotifications([]);
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        batch.delete(doc(db, 'notifications', n.id));
+      });
+      await batch.commit();
+      toast.success("Notifications cleared");
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleLogout = () => {
@@ -136,6 +166,7 @@ export default function App() {
           <StudentDashboard 
             user={profile} 
             grades={grades} 
+            realGPAGrades={realGPAGrades}
             progress={progress} 
             onStartAIQuiz={() => setActiveTab('ai-quiz')}
           />
@@ -158,6 +189,8 @@ export default function App() {
         return <Quiz />;
       case 'ai':
         return <AIStudyEngine />;
+      case 'assignments':
+        return <Assignments />;
       case 'gpa':
         return <GPATracker />;
       case 'timer':

@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Search, StickyNote, CheckSquare, Brain, ArrowRight, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface SearchResult {
   type: 'note' | 'task' | 'quiz';
@@ -19,25 +21,51 @@ interface GlobalSearchProps {
 
 export default function GlobalSearch({ onNavigate, onClose }: GlobalSearchProps) {
   const { user } = useAuth();
-  const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      if (!query.trim()) {
+      if (!searchQuery.trim()) {
         setResults([]);
         return;
       }
 
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
-          headers: { 'x-user-id': user?.uid || '' }
+        const notesResults: SearchResult[] = [];
+        const tasksResults: SearchResult[] = [];
+        const quizzesResults: SearchResult[] = [];
+
+        // Fetch user's notes
+        const notesSnap = await getDocs(query(collection(db, 'notes'), where('userId', '==', user?.uid)));
+        notesSnap.forEach(doc => {
+          const data = doc.data() as any;
+          if (data.title?.toLowerCase().includes(searchQuery.toLowerCase()) || data.content?.toLowerCase().includes(searchQuery.toLowerCase())) {
+            notesResults.push({ id: doc.id, type: 'note', title: data.title, sub: 'Notes' });
+          }
         });
-        if (res.ok) {
-          setResults(await res.json());
-        }
+
+        // Fetch user's tasks
+        const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('userId', '==', user?.uid)));
+        tasksSnap.forEach(doc => {
+          const data = doc.data() as any;
+          if (data.text?.toLowerCase().includes(searchQuery.toLowerCase())) {
+            tasksResults.push({ id: doc.id, type: 'task', title: data.text, sub: 'Tasks' });
+          }
+        });
+
+        // Fetch all quizzes (or just relevant ones)
+        const quizzesSnap = await getDocs(collection(db, 'quizzes'));
+        quizzesSnap.forEach(doc => {
+          const data = doc.data() as any;
+          if (data.title?.toLowerCase().includes(searchQuery.toLowerCase()) || data.subject?.toLowerCase().includes(searchQuery.toLowerCase())) {
+            quizzesResults.push({ id: doc.id, type: 'quiz', title: data.title, sub: data.subject });
+          }
+        });
+
+        setResults([...notesResults, ...tasksResults, ...quizzesResults]);
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -46,7 +74,7 @@ export default function GlobalSearch({ onNavigate, onClose }: GlobalSearchProps)
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query]);
+  }, [searchQuery]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -64,8 +92,8 @@ export default function GlobalSearch({ onNavigate, onClose }: GlobalSearchProps)
         <Input 
           className="pl-12 py-7 bg-card border-border rounded-2xl shadow-xl focus:ring-4 focus:ring-primary/10 transition-all text-lg font-bold"
           placeholder="Search all notes, tasks, and quizzes..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           autoFocus
         />
         {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-muted-foreground" />}
@@ -87,7 +115,7 @@ export default function GlobalSearch({ onNavigate, onClose }: GlobalSearchProps)
                       key={`${res.type}-${res.id}`}
                       className="flex items-center justify-between p-4 rounded-2xl hover:bg-primary/5 transition-all text-left group active:scale-[0.99]"
                       onClick={() => {
-                        onNavigate(res.type === 'quiz' ? 'Quizzes' : (res.type === 'note' ? 'Notes' : 'Tasks'));
+                        onNavigate(res.type === 'quiz' ? 'quiz' : (res.type === 'note' ? 'notes' : 'tasks'));
                         onClose?.();
                       }}
                     >

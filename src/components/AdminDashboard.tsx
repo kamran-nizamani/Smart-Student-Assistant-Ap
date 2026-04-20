@@ -13,6 +13,8 @@ import {
   Globe,
   Loader2
 } from 'lucide-react';
+import { collection, onSnapshot, query, limit, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -24,41 +26,38 @@ export default function AdminDashboard() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchAdminData = async () => {
-      setLoading(true);
-      try {
-        const [usersRes, quizzesRes] = await Promise.all([
-          fetch('/api/users'),
-          fetch('/api/quizzes')
-        ]);
+    // Users count
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const users: any[] = [];
+      snapshot.forEach(doc => users.push(doc.data()));
+      
+      setCounts({
+        students: users.filter((u: any) => u.role === 'student').length,
+        teachers: users.filter((u: any) => u.role === 'teacher').length,
+        admins: users.filter((u: any) => u.role === 'admin').length
+      });
+      setLoading(false);
+    });
 
-        if (usersRes.ok) {
-          const users = await usersRes.json();
-          setCounts({
-            students: users.filter((u: any) => u.role === 'student').length,
-            teachers: users.filter((u: any) => u.role === 'teacher').length,
-            admins: users.filter((u: any) => u.role === 'admin').length
-          });
-        }
+    // Recent Quizzes as "Activity Logs"
+    const qQuizzes = query(collection(db, 'quizzes'), orderBy('createdAt', 'desc'), limit(5));
+    const unsubscribeQuizzes = onSnapshot(qQuizzes, (snapshot) => {
+      const logs = snapshot.docs.map(doc => {
+        const q = doc.data();
+        return {
+          event: `New Quiz: ${q.title}`,
+          user: `Created by ${q.createdBy?.substring(0, 8)}...`,
+          time: new Date(q.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'info'
+        };
+      });
+      setRecentLogs(logs);
+    });
 
-        if (quizzesRes.ok) {
-          const quizzes = await quizzesRes.json();
-          const logs = quizzes.slice(0, 5).map((q: any) => ({
-            event: `New Quiz: ${q.title}`,
-            user: `Created by ${q.createdBy?.substring(0, 8)}...`,
-            time: new Date(q.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'info'
-          }));
-          setRecentLogs(logs);
-        }
-      } catch (error) {
-        console.error("Error fetching admin data:", error);
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      unsubscribeUsers();
+      unsubscribeQuizzes();
     };
-
-    fetchAdminData();
   }, []);
 
   const systemMetrics = [

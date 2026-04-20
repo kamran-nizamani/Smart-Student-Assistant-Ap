@@ -16,7 +16,9 @@ import {
   Timer,
   Brain,
   Search,
-  Zap
+  Zap,
+  Download,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NotificationCenter from './NotificationCenter';
 import GlobalSearch from './GlobalSearch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -47,11 +50,13 @@ export default function Layout({
   onClearAll
 }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isInstallable, install } = usePWAInstall();
 
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'notes', icon: StickyNote, label: 'Notes' },
     { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
+    { id: 'assignments', icon: BookOpen, label: 'Assignments' },
     { id: 'timer', icon: Timer, label: 'Timer' },
     { id: 'weather', icon: CloudSun, label: 'Weather' },
     { id: 'ai', icon: MessageSquare, label: 'AI Assistant' },
@@ -132,6 +137,17 @@ export default function Layout({
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
+            {isInstallable && (
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="w-full mt-2 rounded-xl h-9 font-bold shadow-lg shadow-primary/10 animate-in fade-in slide-in-from-bottom-2"
+                onClick={install}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Install App
+              </Button>
+            )}
             <div className="mt-4 pt-4 border-t border-border/50">
               <p className="text-[10px] text-center font-black text-muted-foreground uppercase tracking-[0.2em]">
                 Developed by <span className="text-primary">Kamran Nizamani</span>
@@ -212,6 +228,16 @@ export default function Layout({
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
                   </Button>
+                  {isInstallable && (
+                    <Button 
+                      variant="default" 
+                      className="w-full mt-3 justify-center rounded-2xl h-11 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                      onClick={install}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Install Application
+                    </Button>
+                  )}
                   <div className="mt-6 pt-6 border-t border-border/50">
                     <p className="text-[11px] text-center font-black text-muted-foreground uppercase tracking-[0.2em] leading-relaxed">
                       Developed by <br/>

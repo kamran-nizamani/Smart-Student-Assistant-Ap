@@ -22,14 +22,19 @@ import { motion } from 'motion/react';
 interface StudentDashboardProps {
   user: any;
   grades: Grade[];
+  realGPAGrades?: any[];
   progress: StudentProgress[];
   onStartAIQuiz?: () => void;
 }
 
-export default function StudentDashboard({ user, grades, progress, onStartAIQuiz }: StudentDashboardProps) {
+export default function StudentDashboard({ user, grades, realGPAGrades = [], progress, onStartAIQuiz }: StudentDashboardProps) {
   const averageGrade = grades.length > 0 
     ? (grades.reduce((acc, g) => acc + (g.score / g.total), 0) / grades.length * 100).toFixed(1)
     : '0';
+
+  const realGPA = realGPAGrades.length > 0
+    ? (realGPAGrades.reduce((acc, g) => acc + g.grade, 0) / realGPAGrades.length).toFixed(2)
+    : (Number(averageGrade) / 25).toFixed(2);
 
   const totalStudyMinutes = progress.reduce((acc, p) => acc + p.studyMinutes, 0);
 
@@ -47,7 +52,7 @@ export default function StudentDashboard({ user, grades, progress, onStartAIQuiz
   const COLORS = ['oklch(0.65 0.15 260)', 'oklch(0.6 0.18 280)', 'oklch(0.55 0.2 320)', 'oklch(0.6 0.2 20)', 'oklch(0.7 0.15 40)'];
 
   const stats = [
-    { label: 'GPA Equivalent', value: (Number(averageGrade) / 25).toFixed(2), icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'GPA Equivalent', value: realGPA, icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Avg. Score', value: `${averageGrade}%`, icon: GraduationCap, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: 'Study Time', value: `${Math.floor(totalStudyMinutes / 60)}h ${totalStudyMinutes % 60}m`, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Tasks Done', value: `${progress.reduce((acc, p) => acc + p.completedTasks, 0)}/${progress.reduce((acc, p) => acc + p.totalTasks, 0)}`, icon: CheckSquare, color: 'text-emerald-600', bg: 'bg-emerald-50' },
